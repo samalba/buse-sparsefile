@@ -33,4 +33,3 @@ func (d *SparseFile) Trim(off, length uint) error {
 	log.Printf("[SparseFile] TRIM offset:%d len:%d\n", off, length)
 	return nil
 }
-
