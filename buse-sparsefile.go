@@ -14,7 +14,7 @@ import (
 )
 
 type BlockHeader struct {
-	size uint64
+	Size uint64
 }
 
 func fatal(msg string, args ...interface{}) {
@@ -44,7 +44,7 @@ func initFile(path string, size uint64) (*os.File, error) {
 		if err := binary.Read(bufr, binary.LittleEndian, header); err != nil {
 			return nil, fmt.Errorf("Cannot decode header from file %s: %s", path, err)
 		}
-		log.Printf("Read size %d MB from header", size/1024/1024)
+		log.Printf("Read size %d MB from header", size)
 		return fp, nil
 	}
 	buf := new(bytes.Buffer)
@@ -58,7 +58,7 @@ func initFile(path string, size uint64) (*os.File, error) {
 	if _, err := fp.Write(buf.Bytes()); err != nil {
 		return nil, fmt.Errorf("Cannot write header to file %s: %s", path, err)
 	}
-	log.Println("Initialized new file", path)
+	log.Printf("Initialized new file %s with size %d MB" , path, header.Size)
 	return fp, nil
 }
 
@@ -73,8 +73,10 @@ func main() {
 	if err != nil {
 		fatal("Cannot parse size:", args[2])
 	}
-	initFile(args[1], size)
-	os.Exit(1)
+	fp, err := initFile(args[1], size)
+	if err != nil {
+		fatal("Cannot initialize file", err)
+	}
 	drv := &SparseFile{}
 	device, err := buse.CreateDevice(args[0], uint(size), drv)
 	if err != nil {
