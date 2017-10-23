@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"signal"
+	"os/signal"
 	"strconv"
 
-	_ "github.com/samalba/buse-go/buse"
+	"github.com/samalba/buse-go/buse"
 )
 
 type BlockHeader struct {
@@ -76,7 +76,7 @@ func main() {
 	initFile(args[1], size)
 	os.Exit(1)
 	drv := &SparseFile{}
-	device, err := buse.CreateDevice(args[0], size, drv)
+	device, err := buse.CreateDevice(args[0], uint(size), drv)
 	if err != nil {
 		fatal("Cannot create the device:", err)
 	}
