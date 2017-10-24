@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"log"
@@ -13,12 +11,8 @@ import (
 	"github.com/samalba/buse-go/buse"
 )
 
-type BlockHeader struct {
-	Size uint64
-}
-
-func fatal(msg string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg, args...)
+func fatal(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
 	os.Exit(1)
 }
 
@@ -29,36 +23,22 @@ func usage() {
 }
 
 func initFile(path string, size uint64) (*os.File, error) {
-	header := &BlockHeader{size}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		log.Println("File exists, ignoring size argument.")
 		fp, err := os.OpenFile(path, os.O_RDWR, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("Cannot open file %s: %s", path, err)
 		}
-		buf := make([]byte, binary.Size(header))
-		if _, err := fp.Read(buf); err != nil {
-			return nil, fmt.Errorf("Cannot read header from file %s: %s", path, err)
-		}
-		bufr := bytes.NewReader(buf)
-		if err := binary.Read(bufr, binary.LittleEndian, header); err != nil {
-			return nil, fmt.Errorf("Cannot decode header from file %s: %s", path, err)
-		}
-		log.Printf("Read size %d MB from header", size)
 		return fp, nil
-	}
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.LittleEndian, header); err != nil {
-		return nil, fmt.Errorf("Cannot encode header: %s", err)
 	}
 	fp, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create file %s: %s", path, err)
 	}
-	if _, err := fp.Write(buf.Bytes()); err != nil {
-		return nil, fmt.Errorf("Cannot write header to file %s: %s", path, err)
+	if err := fp.Truncate(int64(size)); err != nil {
+		return nil, fmt.Errorf("Cannot set size to %d MB: %s", size/1024/1024, err)
 	}
-	log.Printf("Initialized new file %s with size %d MB" , path, header.Size)
+	log.Printf("Initialized new file %s with size %d MB", path, size/1024/1024)
 	return fp, nil
 }
 
@@ -73,11 +53,13 @@ func main() {
 	if err != nil {
 		fatal("Cannot parse size:", args[2])
 	}
+	// Convert size to Bytes
+	size = size * 1024 * 1024
 	fp, err := initFile(args[1], size)
 	if err != nil {
 		fatal("Cannot initialize file", err)
 	}
-	drv := &SparseFile{}
+	drv := &SparseFile{fp}
 	device, err := buse.CreateDevice(args[0], uint(size), drv)
 	if err != nil {
 		fatal("Cannot create the device:", err)
